@@ -1,0 +1,38 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Login</title>
+    <script>
+        async function loginUser() {
+            let username = document.getElementById("username").value;
+            let password = document.getElementById("password").value;
+
+            if (!username || !password) {
+                alert("Username and password are required");
+                return;
+            }
+
+            const response = await fetch("/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+            if (data.token) {
+                localStorage.setItem("jwt", data.token);
+                window.location.href = "/";
+            } else {
+                alert("Login failed");
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Login</h1>
+    <input id="username" type="text" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="loginUser()">Login</button>
+</body>
+</html>

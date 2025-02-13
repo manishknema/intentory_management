@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Signup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            color: #f1c40f;
+        }
+
+        .form-container {
+            margin: auto;
+            width: 50%;
+            padding: 20px;
+            background-color: #2c3e50;
+            border-radius: 10px;
+        }
+
+        input {
+            padding: 8px;
+            margin: 5px;
+            font-size: 16px;
+            width: 80%;
+            display: block;
+            margin: auto;
+            border-radius: 5px;
+        }
+
+        button {
+            background-color: #f1c40f;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: none;
+            font-size: 14px;
+            color: #f1c40f;
+            margin-top: 10px;
+        }
+    </style>
+
+    <script>
+        async function signupUser() {
+            let username = document.getElementById("username").value.trim();
+            let password = document.getElementById("password").value.trim();
+            let errorMessage = document.getElementById("errorMessage");
+            let signupButton = document.getElementById("signupButton");
+            let loadingMessage = document.getElementById("loadingMessage");
+
+            if (!username || !password) {
+                errorMessage.innerText = "❌ Username and password are required!";
+                return;
+            }
+
+            if (password.length < 6) {
+                errorMessage.innerText = "❌ Password must be at least 6 characters long!";
+                return;
+            }
+
+            errorMessage.innerText = ""; // Clear previous error
+            signupButton.disabled = true; // Disable button to prevent multiple clicks
+            loadingMessage.style.display = "block"; // Show loading indicator
+
+            try {
+                console.log("📤 Sending signup request:", { username, password });
+
+                const response = await fetch("/signup", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                console.log("📥 API Response:", data);
+
+                if (response.ok) {
+                    alert("✅ Signup successful! Redirecting to login...");
+                    window.location.href = "/login";
+                } else {
+                    errorMessage.innerText = "❌ Signup failed: " + (data.error || "Unknown error");
+                }
+            } catch (error) {
+                errorMessage.innerText = "❌ Network error, please try again!";
+                console.error("Network Error:", error);
+            } finally {
+                signupButton.disabled = false; // Re-enable button
+                loadingMessage.style.display = "none"; // Hide loading indicator
+            }
+        }
+
+        // Allow "Enter" key to trigger signup
+        document.addEventListener("DOMContentLoaded", function () {
+            document.getElementById("password").addEventListener("keypress", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    signupUser();
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Signup</h1>
+    <div class="form-container">
+        <input id="username" type="text" placeholder="Username">
+        <input id="password" type="password" placeholder="Password">
+        <button id="signupButton" onclick="signupUser()">Signup</button>
+        <p id="loadingMessage" class="loading">⏳ Processing...</p>
+        <p id="errorMessage" class="error-message"></p>
+        <p>Already have an account? <a href="/login">Login</a></p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Inventory Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            color: #f1c40f;
+        }
+
+        .button-container {
+            margin: 20px;
+        }
+
+        button {
+            background-color: #f1c40f;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            border-radius: 5px;
+        }
+
+        button:disabled {
+            background-color: #7f8c8d;
+            cursor: not-allowed;
+        }
+
+        table {
+            width: 80%;
+            margin: auto;
+            border-collapse: collapse;
+            background-color: #2c3e50;
+            color: white;
+            text-align: left;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #f1c40f;
+        }
+
+        th {
+            background-color: #34495e;
+        }
+
+        #pagination {
+            margin-top: 20px;
+        }
+
+        #noRecords {
+            display: none;
+            color: #f1c40f;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            font-size: 16px;
+        }
+    </style>
+
+    <script>
+        let selectedItems = [];
+        let currentPage = 1;
+        async function checkAuth() {
+            const token = localStorage.getItem("jwt");
+
+            if (token) {
+                console.log("✅ JWT token found, loading inventory...");
+                loadItems();
+                document.getElementById("inventorySection").style.display = "block"; // Show inventory only when logged in
+                return;
+            }
+
+            console.log("🔍 Checking if any users exist...");
+            const response = await fetch("/check-users");
+            const data = await response.json();
+
+            if (data.users > 0) {
+                console.log("✅ Users exist, showing login button.");
+                document.getElementById("authSection").innerHTML = `
+                    <button onclick="window.location.href='/login'">Login</button>
+                `;
+                document.getElementById("inventorySection").style.display = "none"; // 🔹 Keep inventory hidden until login
+            } else {
+                console.log("❌ No users exist, showing signup button.");
+                document.getElementById("authSection").innerHTML = `
+                    <button onclick="window.location.href='/signup'">Signup</button>
+                `;
+                document.getElementById("inventorySection").style.display = "none"; // 🔹 Ensure inventory is hidden
+            }
+    }
+
+    
+
+    async function loadItems(page = 1) {
+        const token = localStorage.getItem("jwt");
+        if (!token) return;
+
+        const response = await fetch(`/items?page=${page}`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+
+        const data = await response.json();
+        let tableBody = document.getElementById("inventoryTable");
+        tableBody.innerHTML = "";
+
+        if (data.items.length === 0 && page === 1) {
+            document.getElementById("noRecords").style.display = "block";
+            document.getElementById("pagination").style.display = "none";
+            return;
+        } else {
+            document.getElementById("noRecords").style.display = "none";
+            document.getElementById("pagination").style.display = "block";
+        }
+
+        data.items.forEach(item => {
+            tableBody.innerHTML += `<tr>
+                <td><input type="checkbox" value="${item.id}" onchange="selectItem(this)"></td>
+                <td>${item.id}</td><td>${item.name}</td><td>${item.description}</td><td>${item.price}</td>
+            </tr>`;
+        });
+
+        // Update the current page number
+        currentPage = data.page;
+
+        // Disable "Previous" if on the first page
+        document.getElementById("prevButton").disabled = (currentPage === 1);
+
+        // Disable "Next" if no more items are present
+        document.getElementById("nextButton").disabled = (data.items.length < 5);
+    }
+
+    function goToPreviousPage() {
+        if (currentPage > 1) {
+            loadItems(currentPage - 1);
+        }
+    }
+
+    function goToNextPage() {
+        loadItems(currentPage + 1);
+    }
+
+        function selectItem(checkbox) {
+            const itemId = parseInt(checkbox.value);
+            if (checkbox.checked) {
+                if (!selectedItems.includes(itemId)) {
+                    selectedItems.push(itemId);
+                }
+            } else {
+                selectedItems = selectedItems.filter(id => id !== itemId);
+            }
+
+            document.getElementById("deleteButton").disabled = selectedItems.length === 0;
+        }
+
+        async function addItem() {
+            const name = document.getElementById("itemName").value;
+            const description = document.getElementById("itemDescription").value;
+            const price = parseFloat(document.getElementById("itemPrice").value); // 🔹 Ensure price is a float
+
+            if (!name || isNaN(price)) {
+                alert("❌ Name and Price (must be a number) are required!");
+                return;
+            }
+
+            const token = localStorage.getItem("jwt");
+
+            console.log("📤 Sending request to add item:", { name, description, price });
+
+            const response = await fetch("/items", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ name, description, price }) // 🔹 Ensure `price` is a float
+            });
+
+            const result = await response.json();
+            console.log("📥 API Response:", result);
+
+            if (response.ok) {
+                alert("✅ Item added successfully!");
+                loadItems();
+            } else {
+                alert("❌ Error: " + result.error);
+            }
+        }
+        async function deleteItems() {
+            if (selectedItems.length === 0) {
+                alert("Please select at least one item to delete!");
+                return;
+            }
+
+            const token = localStorage.getItem("jwt");
+            console.log("📤 Sending delete request for items:", selectedItems);
+
+            const response = await fetch(`/items/delete-multiple`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token 
+                },
+                body: JSON.stringify({ item_ids: selectedItems })
+            });
+
+            const result = await response.json();
+            console.log("📥 API Response:", result);
+
+            if (response.ok) {
+                alert(`${result.deleted_count} items deleted successfully!`);
+                selectedItems = [];
+                loadItems();
+            } else {
+                alert("❌ Error: " + result.error);
+            }
+        }
+
+        function logout() {
+            console.log("🔴 Logging out...");
+            localStorage.removeItem("jwt");
+            document.getElementById("inventorySection").style.display = "none"; // 🔹 Hide inventory on logout
+            window.location.href = "/login";
+        }
+    </script>
+</head>
+<body onload="checkAuth();">
+    <h1>Inventory Management</h1>
+    <div id="authSection"></div>
+    <div id="inventorySection">
+        <div>
+            <input id="itemName" type="text" placeholder="Item Name">
+            <input id="itemDescription" type="text" placeholder="Description">
+            <input id="itemPrice" type="number" placeholder="Price">
+            <button onclick="addItem()">Add Item</button>
+        </div>
+
+        <div class="button-container">
+            <button id="deleteButton" onclick="deleteItems()" disabled>Delete Selected Items</button>
+            <button onclick="logout()">Logout</button>
+        </div>
+
+        <table>
+            <thead><tr><th>Select</th><th>ID</th><th>Name</th><th>Description</th><th>Price</th></tr></thead>
+            <tbody id="inventoryTable"></tbody>
+        </table>
+
+        <p id="noRecords">No records available</p>
+
+        <div id="pagination">
+            <button id="prevButton" onclick="goToPreviousPage()">Previous</button>
+            <button id="nextButton" onclick="goToNextPage()">Next</button>
+        </div>
+</div>
+</body>
+</html>
