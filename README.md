@@ -15,7 +15,7 @@ This guide will give you **everything**—from setting up your environment, writ
 1. Create a **GitHub repository** (e.g., `inventory-management-go`).
 2. Clone it into VS Code:
    ```bash
-   git clone https://github.com/your-username/inventory-management-go.git
+   git clone https://github.com/your-username/inventory-management.git
    cd inventory-management-go
    ```
 3. Initialize **Go Modules**:
