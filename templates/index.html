@@ -109,38 +109,53 @@
         const token = localStorage.getItem("jwt");
         if (!token) return;
 
-        const response = await fetch(`/items?page=${page}`, {
-            headers: { "Authorization": "Bearer " + token }
-        });
+        try {
+            const response = await fetch(`/items?page=${page}`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
 
-        const data = await response.json();
-        let tableBody = document.getElementById("inventoryTable");
-        tableBody.innerHTML = "";
+            if (!response.ok) {
+                console.error("❌ API Error:", response.status);
+                document.getElementById("noRecords").style.display = "block";
+                return;
+            }
 
-        if (data.items.length === 0 && page === 1) {
+            const data = await response.json();
+            console.log("📥 API Response:", data);
+
+            let tableBody = document.getElementById("inventoryTable");
+            tableBody.innerHTML = "";
+
+            // ✅ Ensure `data.items` exists before accessing `.length`
+            if (!data.items || data.items.length === 0) {
+                console.log("⚠️ No inventory items found.");
+                document.getElementById("noRecords").style.display = "block";
+                document.getElementById("pagination").style.display = "none";
+                return;
+            } else {
+                document.getElementById("noRecords").style.display = "none";
+                document.getElementById("pagination").style.display = "block";
+            }
+
+            data.items.forEach(item => {
+                tableBody.innerHTML += `<tr>
+                    <td><input type="checkbox" value="${item.id}" onchange="selectItem(this)"></td>
+                    <td>${item.id}</td><td>${item.name}</td><td>${item.description}</td><td>${item.price}</td>
+                </tr>`;
+            });
+
+            // Update the current page number
+            currentPage = data.page || 1;
+
+            // Disable "Previous" if on the first page
+            document.getElementById("prevButton").disabled = (currentPage === 1);
+
+            // Disable "Next" if no more items are present
+            document.getElementById("nextButton").disabled = (data.items.length < 5);
+        } catch (error) {
+            console.error("❌ Fetch Error:", error);
             document.getElementById("noRecords").style.display = "block";
-            document.getElementById("pagination").style.display = "none";
-            return;
-        } else {
-            document.getElementById("noRecords").style.display = "none";
-            document.getElementById("pagination").style.display = "block";
         }
-
-        data.items.forEach(item => {
-            tableBody.innerHTML += `<tr>
-                <td><input type="checkbox" value="${item.id}" onchange="selectItem(this)"></td>
-                <td>${item.id}</td><td>${item.name}</td><td>${item.description}</td><td>${item.price}</td>
-            </tr>`;
-        });
-
-        // Update the current page number
-        currentPage = data.page;
-
-        // Disable "Previous" if on the first page
-        document.getElementById("prevButton").disabled = (currentPage === 1);
-
-        // Disable "Next" if no more items are present
-        document.getElementById("nextButton").disabled = (data.items.length < 5);
     }
 
     function goToPreviousPage() {
